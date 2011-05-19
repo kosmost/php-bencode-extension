@@ -407,7 +407,18 @@ static void php_bdecode_int(zval *return_value, char *str, int *pos TSRMLS_DC)
 	}
 	(*pos)++;
 	smart_str_0(&buf);
-	ZVAL_LONG(return_value, atol(buf.c));
+
+	double d = zend_strtod(buf.c, NULL);
+	if (d > LONG_MAX || d < -LONG_MAX) 
+	{
+		ZVAL_STRINGL(return_value, buf.c, buf.len, 1);
+		convert_to_double(return_value);
+	}
+	else
+	{
+		ZVAL_STRINGL(return_value, buf.c, buf.len, 1);
+		convert_to_long(return_value);
+	}
 	smart_str_free(&buf);
 }
 
@@ -459,7 +470,11 @@ static void php_bdecode_list(zval *return_value, char *str, int *pos TSRMLS_DC)
 				add_next_index_long(list, Z_LVAL_P(v));
         		zval_ptr_dtor(&v);
 				break;
-           	case IS_ARRAY:
+			case IS_DOUBLE:
+				add_next_index_double(list, Z_DVAL_P(v));
+        		zval_ptr_dtor(&v);
+				break;
+          	case IS_ARRAY:
 				add_next_index_zval(list,  v);
 				break;
 			default:
@@ -496,6 +511,10 @@ static void php_bdecode_dict(zval *return_value, char *str, int *pos TSRMLS_DC)
 				add_assoc_stringl(dict, Z_STRVAL_P(k), Z_STRVAL_P(v), Z_STRLEN_P(v), 1);
 				zval_ptr_dtor(&v);
 				break;
+			case IS_DOUBLE:
+				add_assoc_double(dict,Z_STRVAL_P(k), Z_DVAL_P(v));
+        		zval_ptr_dtor(&v);
+				break;			
 			case IS_LONG:
 				add_assoc_long(dict, Z_STRVAL_P(k), Z_LVAL_P(v));
 				zval_ptr_dtor(&v);
